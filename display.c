@@ -33,6 +33,7 @@ typedef struct {
     DispCmd_t cnd;           // Select display line
     uint8_t   ctrl;          // Last control word, data bytes to follow
     uint8_t   text[COLS];  // ASCII text to write to display
+    uint8_t   term;        // NUL terminator
 } DispLine_t;
 
 // Initialization command sequence
@@ -45,17 +46,17 @@ static const DispCmd_t txInit[] = {
 
 // Select display line and print text
 static DispLine_t txLine[ROWS] = {
-    {{0x80, 0x80}, 0x40, {0},0x00},   // Line 1: DDRAM address 0x00
-    {{0x80, 0xC0}, 0x40, {0},0x00 }    // Line 2: DDRAM address 0x40
+    {{0x80, 0x80}, 0x40, {0},0x00},   // Line 1: DDRAM address 0x80
+    {{0x80, 0xC0}, 0x40, {0},0x00 }    // Line 2: DDRAM address 0xC0
 };
 
 static bool updateLine[2] = {false, false};
 
 // I2C transfers
-static I2C_Xfer_t DispInit = {&LeafyI2C, 0x7C, (uint8_t*)txInit, sizeof(txInit), 1, 0, NULL};
+static I2C_Xfer_t DispInit = {&LeafyI2C, 0x7C, (void *)&txInit, 8, 1, 0, NULL};
 static I2C_Xfer_t DispLine[ROWS] = {
-    {&LeafyI2C, 0x7C, (uint8_t*)&txLine[0], sizeof(txLine[0]) - 1, 1, 0, NULL},
-    {&LeafyI2C, 0x7C, (uint8_t*)&txLine[1], sizeof(txLine[1]) - 1, 1, 0, NULL}
+    {&LeafyI2C, 0x7C, (void *)&txLine[0], 19, 1, 0, NULL},
+    {&LeafyI2C, 0x7C, (void *)&txLine[1], 19, 1, 0, NULL}
 };
 
 // Enable LCD display
@@ -94,9 +95,9 @@ static BltCmd_t txBlue  = {0x03, 0x00};
 static bool updateBlt = true;
 
 // I2C transfers
-static I2C_Xfer_t BltRed   = {&LeafyI2C, 0x5A, (uint8_t*)&txRed, sizeof(txRed), 1, 0, NULL};
-static I2C_Xfer_t BltGreen = {&LeafyI2C, 0x5A, (uint8_t*)&txGreen, sizeof(txGreen), 1, 0, NULL};
-static I2C_Xfer_t BltBlue  = {&LeafyI2C, 0x5A, (uint8_t*)&txBlue, sizeof(txBlue), 1, 0, NULL};
+static I2C_Xfer_t BltRed   = {&LeafyI2C, 0x5A, (void *)&txRed,   2, 1, 0, NULL};
+static I2C_Xfer_t BltGreen = {&LeafyI2C, 0x5A, (void *)&txGreen, 2, 1, 0, NULL};
+static I2C_Xfer_t BltBlue  = {&LeafyI2C, 0x5A, (void *)&txBlue,  2, 1, 0, NULL};
 
 // Set new backlight color
 // Set new backlight color
@@ -104,7 +105,7 @@ void DisplayColor(Color_t color) {
     // Extract red, green, blue components from 0xRRGGBB value
     txRed.data   = (color >> 16) & 0xFF;
     txGreen.data = (color >> 8)  & 0xFF;
-    txBlue.data  = color & 0xFF;
+    txBlue.data  = (color >> 0)  & 0xFF;
 
     updateBlt = true;
 }
@@ -128,3 +129,4 @@ void UpdateDisplay(void) {
         I2C_Request(&BltBlue);
     }
 }
+
