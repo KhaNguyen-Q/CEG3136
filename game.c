@@ -1,7 +1,7 @@
 /*
  * game.c
  *
- *  Created on: Oct 20, 2025
+ *  Created on: Nov 1, 2025
  *      Author: bguer053
  */
 
@@ -23,10 +23,11 @@
 #define QUIT_HOLD_MS 3000U
 
 // Button bit mapping
-#define BTN_P2_MASK ((1<<8)|(1<<9)|(1<<10))
+#define BTN_P1_MASK ((1<<8)|(1<<9)|(1<<10))
+#define BTN_P2_MASK ((1<<13)|(1<<14)|(1<<15))
 #define BTN_START_BIT (1<<11)
 #define BTN_SELECT_BIT (1<<12)
-#define BTN_P1_MASK ((1<<13)|(1<<14)|(1<<15))
+
 
 #define LEFT_EDGE 0
 #define RIGHT_EDGE 7
@@ -213,9 +214,9 @@ case PLAY: {
     }
 
     if (position < LEFT_EDGE) {
-        P2score++;
-        DisplayColor(YELLOW);
-        DisplayPrint(0, "2P SCORES!");
+        P1score++;
+        DisplayColor(CYAN);
+        DisplayPrint(0, "1P SCORES!");
         char score[16]; sprintf(score, "%02d - %02d", P1score, P2score);
         DisplayPrint(1, score);
         state = SERVE;
@@ -223,9 +224,9 @@ case PLAY: {
         position = P1serve ? LEFT_EDGE : RIGHT_EDGE;
         GPIO_PortOutput(GPIOX, 1 << position);
     } else if (position > RIGHT_EDGE) {
-        P1score++;
-        DisplayColor(CYAN);
-        DisplayPrint(0, "1P SCORES!");
+        P2score++;
+        DisplayColor(YELLOW);
+        DisplayPrint(0, "2P SCORES!");
         char score[16]; sprintf(score, "%02d - %02d", P1score, P2score);
         DisplayPrint(1, score);
         state = SERVE;
