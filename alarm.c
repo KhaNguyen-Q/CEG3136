@@ -20,11 +20,11 @@
 #define LED_Toggle(pin) GPIO_Toggle(pin)
 
 // GPIO pins
-static const Pin_t LedR = {GPIOB, 9};
+static const Pin_t LedR = {GPIOA, 9};
 static const Pin_t LedG = {GPIOC, 7};
 static const Pin_t LedB = {GPIOB, 7};
-static const Pin_t Button = {GPIOC, 13};
-static const Pin_t Motion = {GPIOB, 8};
+static const Pin_t Button = {GPIOB, 2};
+static const Pin_t Motion = {GPIOB, 9};
 
 // Alarm states
 static enum { DISARMED, ARMED, TRIGGERED } state;
@@ -81,8 +81,8 @@ void Init_Alarm(void) {
     GPIO_Callback(Button, CallbackButtonRelease, FALL);
 
     DisplayEnable();
-    DisplayColor(WHITE);
-    DisplayPrint(0, "DISARMED");
+    DisplayColor(ALARM, WHITE);
+    DisplayPrint(ALARM, 0, "DISARMED");
 }
 
 // Task (state machine)
@@ -94,6 +94,8 @@ void Task_Alarm(void) {
         LED_Clear(LedR);
         LED_Clear(LedG);
         LED_Clear(LedB);
+        DisplayColor(ALARM, WHITE);
+        DisplayPrint(ALARM, 0, "DISARMED");
 
         if (buttonBriefFlag) {
             buttonBriefFlag = 0;
@@ -103,20 +105,20 @@ void Task_Alarm(void) {
             ledStateGB = false;
             LED_Set(LedG);
             LED_Clear(LedB);
-            DisplayColor(WHITE);
-            DisplayPrint(0, "DISARMED");
+
         }
         break;
 
     case ARMED:
+    	DisplayColor(ALARM, YELLOW);
+    	DisplayPrint(ALARM, 0, "ARMED");
         if (buttonPressedFlag) {
             uint32_t held = now - lastButtonPressTime;
             if (held >= LONG_PRESS_MS) {
                 buttonPressedFlag = 0;
                 buttonBriefFlag = 0;
                 state = DISARMED;
-                DisplayColor(YELLOW);
-                DisplayPrint(0, "ARMED");
+
 
             }
         }
@@ -147,6 +149,8 @@ void Task_Alarm(void) {
         LED_Set(LedR);
         LED_Clear(LedG);
         LED_Clear(LedB);
+        DisplayColor(ALARM, RED);
+        DisplayPrint(ALARM, 0, "TRIGGERED");
 
         if (buttonBriefFlag) {
             buttonBriefFlag = 0;
@@ -156,8 +160,7 @@ void Task_Alarm(void) {
             ledStateGB = false;
             LED_Set(LedG);
             LED_Clear(LedR);
-            DisplayColor(RED);
-            DisplayPrint(0, "TRIGGERED");
+
         }
 
         if (buttonPressedFlag) {

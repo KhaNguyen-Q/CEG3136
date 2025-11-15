@@ -25,19 +25,27 @@
 // App headers
 #include "alarm.h"
 #include "game.h"
+#include "display.h"
+#include "touchpad.h"
+#include "calc.h"
+
 int main (void)
 {
  // Initialize apps
  Init_Alarm();
  Init_Game();
+ Init_Calc();
  // Enable services
  StartSysTick();
  while (1) {
  // Run apps
  Task_Alarm();
  Task_Game();
+ Task_Calc();
  // Housekeeping
  UpdateIOExpanders();
+ UpdateDisplay();
+ ScanTouchpad();
  ServiceI2CRequests();
  WaitForSysTick();
  }

@@ -16,117 +16,147 @@
 #include "display.h"
 #include "i2c.h"
 #include "systick.h"
-
+#include "touchpad.h"
+bool enabled = false; // Initialization complete
+Page_t openPage = 0; // Currently displayed page
+static const Pin_t TouchEn = {GPIOB, 5}; // Pin PB5 <- Touch En button
+Time_t pressTime; // Timestamp of last button press
+#define DEBOUNCE_TIME 50 // 50ms debounce
+static void CallbackTouchEnPress(void);
+static void CallbackTouchEnRelease(void);
 // --------------------------------------------------------
 // Display controller
 // --------------------------------------------------------
-
-#define ROWS  2  // Number of rows
-#define COLS 16  // Number of columns
-
+#define ROWS 2 // Number of rows
+#define COLS 16 // Number of columns
+uint8_t dispText[PAGES][ROWS][COLS+1];
+// Command word
 typedef struct {
-    uint8_t ctrl;  // Control byte
-    uint8_t data;  // Data byte
+ uint8_t ctrl; // Control byte
+uint8_t data; // Data byte
 } DispCmd_t;
-
-typedef struct {
-    DispCmd_t cnd;           // Select display line
-    uint8_t   ctrl;          // Last control word, data bytes to follow
-    uint8_t   text[COLS];  // ASCII text to write to display
-    uint8_t   term;        // NUL terminator
-} DispLine_t;
-
 // Initialization command sequence
 static const DispCmd_t txInit[] = {
-    {0x80, 0x38}, // Function set: 8-bit, 2-line, 5x8 font
-    {0x80, 0x0C}, // Display off
-    {0x80, 0x01}, // Clear display
-    {0x80, 0x06}  // Entry mode set: increment cursor
+ {0x80, 0x28}, // Function Set: 2-line, display OFF
+ {0x80, 0x0C}, // Display Control: display ON, cursor OFF, blink OFF
+ {0x80, 0x01}, // Display Clear
+ {0x80, 0x06} // Entry Mode Set: increment, no shift
 };
-
+// Display line
+typedef struct {
+ DispCmd_t cmd; // Command word to set display line
+ uint8_t ctrl; // Last control byte, data bytes to follow
+ uint8_t text[COLS]; // ASCII text to write to display
+} DispLine_t;
 // Select display line and print text
 static DispLine_t txLine[ROWS] = {
-    {{0x80, 0x80}, 0x40, {0},0x00},   // Line 1: DDRAM address 0x80
-    {{0x80, 0xC0}, 0x40, {0},0x00 }    // Line 2: DDRAM address 0xC0
-};
-
+ { {0x80, 0x80}, 0x40, {0} },
+ { {0x80, 0xC0}, 0x40, {0} } };
 static bool updateLine[2] = {false, false};
-
 // I2C transfers
-static I2C_Xfer_t DispInit = {&LeafyI2C, 0x7C, (void *)&txInit, 8, 1, 0, NULL};
+static I2C_Xfer_t DispInit = {&LeafyI2C, 0x7C, (uint8_t *)&txInit, 8, 1};
 static I2C_Xfer_t DispLine[ROWS] = {
-    {&LeafyI2C, 0x7C, (void *)&txLine[0], 19, 1, 0, NULL},
-    {&LeafyI2C, 0x7C, (void *)&txLine[1], 19, 1, 0, NULL}
-};
-
+ {&LeafyI2C, 0x7C, (uint8_t *)&txLine[0], 19, 1},
+ {&LeafyI2C, 0x7C, (uint8_t *)&txLine[1], 19, 1} };
 // Enable LCD display
 void DisplayEnable (void) {
-    I2C_Enable(LeafyI2C);
-    I2C_Request(&DispInit);
+ if (!enabled) {
+ enabled = true;
+ I2C_Enable(LeafyI2C);
+ I2C_Request(&DispInit);
+ // Blank out display text on all pages/rows
+ for (int i = 0; i < PAGES ; i++)
+ for (int j = 0; j < ROWS; j++)
+ for (int k = 0; k < COLS ; k++)
+ dispText[i][j][k] = ' ';
+ // Use the Touch En button to cycle between display pages
+ GPIO_Enable(TouchEn);
+ GPIO_Mode(TouchEn, INPUT);
+ GPIO_Callback(TouchEn, CallbackTouchEnPress, RISE);
+ GPIO_Callback(TouchEn, CallbackTouchEnRelease, FALL);
+ }
 }
-
 // Print a line of text with optional format specifiers
-void DisplayPrint (const int line, const char *msg, ...) {
-    va_list args;
-    va_start(args, msg);
-
-    // Full buffer with formatted text and space pad the remainder
-    int chars = vsnprintf((char *)txLine[line].text, COLS+1, msg, args);
-    for (int i = chars; i < COLS; i++)
-        txLine[line].text[i] = ' ';
-
-    updateLine[line] = true;
+void DisplayPrint (Page_t page, const int line, const char *msg, ...) {
+ va_list args;
+ va_start(args, msg);
+ // Full buffer with formatted text and space pad the remainder
+ int chars = vsnprintf((char *)dispText[page][line], COLS+1, msg, args);
+ for (int i = chars; i < COLS; i++)
+ dispText[page][line][i] = ' ';
+ if (page == openPage)
+ updateLine[line] = true;
 }
-
 // --------------------------------------------------------
 // Backlight controller
 // --------------------------------------------------------
-
+Color_t dispColor[PAGES] = {OFF, CYAN, MAGENTA, ORANGE};
 typedef struct {
-    uint8_t addr;  // Address byte
-    uint8_t data;  // Data byte
+ uint8_t addr; // Address byte
+ uint8_t data; // Data byte
 } BltCmd_t;
-
 // Transmit data buffers to set brightness of each LED, all off by default
-static BltCmd_t txRed   = {0x01, 0x00};
+static BltCmd_t txRed = {0x01, 0x00};
 static BltCmd_t txGreen = {0x02, 0x00};
-static BltCmd_t txBlue  = {0x03, 0x00};
-
+static BltCmd_t txBlue = {0x03, 0x00};
 static bool updateBlt = true;
-
 // I2C transfers
-static I2C_Xfer_t BltRed   = {&LeafyI2C, 0x5A, (void *)&txRed,   2, 1, 0, NULL};
-static I2C_Xfer_t BltGreen = {&LeafyI2C, 0x5A, (void *)&txGreen, 2, 1, 0, NULL};
-static I2C_Xfer_t BltBlue  = {&LeafyI2C, 0x5A, (void *)&txBlue,  2, 1, 0, NULL};
-
+static I2C_Xfer_t BltRed = {&LeafyI2C, 0x5A, (void *)&txRed, 2, 1};
+static I2C_Xfer_t BltGreen = {&LeafyI2C, 0x5A, (void *)&txGreen, 2, 1};
+static I2C_Xfer_t BltBlue = {&LeafyI2C, 0x5A, (void *)&txBlue, 2, 1};
 // Set new backlight color
-// Set new backlight color
-void DisplayColor(Color_t color) {
-    // Extract red, green, blue components from 0xRRGGBB value
-    txRed.data   = (color >> 16) & 0xFF;
-    txGreen.data = (color >> 8)  & 0xFF;
-    txBlue.data  = (color >> 0)  & 0xFF;
-
-    updateBlt = true;
+void DisplayColor(const Page_t page, const Color_t color) {
+ dispColor[page] = color;
+ if (page == openPage)
+ updateBlt = true;
 }
-
 // --------------------------------------------------------
 // Automatic background updates
 // --------------------------------------------------------
-
 // Called from main loop
 void UpdateDisplay(void) {
-    for (int i = 0; i < ROWS; i++)
-        if (!DispLine[i].busy && updateLine[i]) {
-            updateLine[i] = false;
-            I2C_Request(&DispLine[i]);
-        }
-
-    if (!BltBlue.busy && updateBlt) {
-        updateBlt = false;
-        I2C_Request(&BltRed);
-        I2C_Request(&BltGreen);
-        I2C_Request(&BltBlue);
-    }
+ // Update display text
+ for (int j = 0; j < ROWS; j++)
+ if (!DispLine[j].busy && updateLine[j]) {
+ updateLine[j] = false;
+ // Copy text into buffer
+ for (int k = 0; k < COLS; k++)
+ txLine[j].text[k] = dispText[openPage][j][k];
+ I2C_Request(&DispLine[j]);
+ }
+ // Update backlight
+ if (!BltBlue.busy && updateBlt) {
+ updateBlt = false;
+ // Extract individual color bytes
+ Color_t color = dispColor[openPage];
+ txRed .data = (color >> 16) & 0xFF;
+ txGreen.data = (color >> 8) & 0xFF;
+ txBlue .data = (color >> 0) & 0xFF;
+ I2C_Request(&BltRed);
+ I2C_Request(&BltGreen);
+ I2C_Request(&BltBlue);
+ }
 }
-
+// --------------------------------------------------------
+// Page switching
+// --------------------------------------------------------
+// Obtain the currently displayed page
+Page_t GetPage (void) {
+ return openPage;
+}
+static void CallbackTouchEnPress (void) {
+ pressTime = TimeNow();
+}
+static void CallbackTouchEnRelease (void) {
+ Time_t heldTime = TimePassed(pressTime);
+ if (heldTime > DEBOUNCE_TIME) {
+ // Switch to next page
+ openPage++;
+ openPage %= PAGES;
+ // Force update of display text and backlight color
+ for (int i = 0; i < ROWS; i++)
+ updateLine[i] = true;
+ updateBlt = true;
+ ClearTouchpad(); // Discard input buffer
+ }
+}
