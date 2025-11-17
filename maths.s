@@ -24,9 +24,9 @@ Decrement:
 sub r0, r0, #1
 bx lr
 
-// basic 4 functions uint32_t(uint32_t sel, uint32_t a, uint32_t b)
+// basic add,sub,multi,div uint32_t(uint32_t sel, uint32_t a, uint32_t b)
 // sel=0 is add, sel=1 is sub, sel=2 is mult, sel=3 is div
-// written from scratch
+// No assistance
 .global Classic4Function
 .type Classic4Function, %function
 Classic4Function:
@@ -48,7 +48,7 @@ sdiveq r0, r1, r2
 bxeq lr
 
 
-//GCD Functions uint32_t(uint32_t a, uint32_t b)
+//GCD function uint32_t(uint32_t a, uint32_t b)
 // taken from lecture 7 slide 29
 .global GCD
 .type GCD, %function
@@ -65,7 +65,7 @@ END:
 bx lr
 
 //factorial uint32_t(uint32_t a)
-// written from scratch
+//No assistance
 .global Factorial
 .type Factorial, %function
 Factorial:
@@ -82,7 +82,7 @@ mul r0, r1, r0 //return value
 bx lr//go back to original function
 
 // fibbonacci uint32_t(uint32_t a)
-// written from scratch
+// Ta assistance
 .global Fibbonacci
 .type Fibbonacci, %function
 Fibbonacci:
@@ -153,7 +153,7 @@ sort_done:
 
 
 //average  uint32_t(uint32_t length, uint32_t *arr)
-//written from scratch
+//Ta assistance 
 .global Average
 .type Average, %function
 Average:
@@ -175,17 +175,4 @@ b avg_loop
 avg_done:
 pop {r4, r5}
 udiv r0, r2, r0
-bx lr
-
-//compare two numbers uint32_t(uint32_t a, uint32_t b)
-.global Compare
-.type Compare, %function
-Compare:
-cmp r0, r1
-it eq
-moveq r0, #0
-it lt
-movlt r0, #1
-it gt
-movgt r0, #2
 bx lr
