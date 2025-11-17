@@ -44,7 +44,7 @@ uint32_t Classic4Function(uint32_t sel, uint32_t n1, uint32_t n2);
 
 uint32_t Factorial(uint32_t n);
 
-uint32_t Fibbonacci(uint32_t n);
+uint32_t Fibonacci(uint32_t n);
 
 uint32_t GCD(uint32_t n, uint32_t n2);
 
@@ -172,11 +172,11 @@ void Task_Calc (void) {
 			}
 			break;
 
-		case 8: //Fibbonacci
+		case 8: //Fibonacci
 			if (count == 1) //gets one operand
 				state = RUN;
 			else {
-				DisplayPrint(CALC, 0, "FIBBONACCI num:");
+				DisplayPrint(CALC, 0, "FIBONACCI num:");
 				state = ENTRY;
 			}
 			break;
@@ -259,7 +259,7 @@ void Task_Calc (void) {
 			case 5: result = Classic4Function(0b11, operand[0], operand[1]); break;
 			case 6: result = GCD(operand[0], operand[1]); break;
 			case 7: result = Factorial(operand[0]); break;
-			case 8: result = Fibbonacci(operand[0]); break;
+			case 8: result = Fibonacci(operand[0]); break;
 			case 9:
 				result = Sort(operand[0], arr);
 				state = SHOWARR; //we show array
@@ -319,4 +319,5 @@ void Task_Calc (void) {
 				break;
 			}
 	}
+
 
