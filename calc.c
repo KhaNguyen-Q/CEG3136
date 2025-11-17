@@ -17,27 +17,41 @@
 #include "touchpad.h"
 #include "systick.h"
 
-#define NMAX 10 // Maximum number of operands
+#define NMAX 10 // Max num of operands
 
 static Press_t operation; // Selected operation
+
 static Entry_t operand[NMAX]; // Numeric operands
+
 static Entry_t arr[10]; //array for operations
+
 static int count; // Count of operands received
+
 static Entry_t result; // Calculation result
+
 static Time_t time; //time used for displaying the arrays
+
 static int counter = 0; //used for counting through array
 
-static enum {MENU, PROMPT, ENTRY, ARRAYENTRY, ARRAYENTRYt10, RUN, SHOW, SHOWFLOAT, SHOWARR, WAIT} state;
+static enum {MENU, PROMPT, ENTRY, ARRAYENTRY, ARRAYENTRY10, RUN, SHOW, SHOWFLOAT, SHOWARR, WAIT} state;
 
 // Assembly subroutines to be called as functions
 uint32_t Increment(uint32_t n);
+
 uint32_t Decrement(uint32_t n);
+
 uint32_t Classic4Function(uint32_t sel, uint32_t n1, uint32_t n2);
+
 uint32_t Factorial(uint32_t n);
+
 uint32_t Fibbonacci(uint32_t n);
+
 uint32_t GCD(uint32_t n, uint32_t n2);
+
 uint32_t Sort(uint32_t n, uint32_t *arr);
+
 uint32_t Average(uint32_t n, uint32_t *arr);
+
 
 
 
@@ -54,26 +68,13 @@ DisplayPrint(CALC, 1, "ENTER OP (0-9)");
 time = TimeNow();
 }
 
-/*
- * 1: INC -
- * 2: ADD -
- * 3: SUB -
- * 4: MUL -
- * 5: DIV -
- * 6: GCD -
- * 7: FACT -
- * 8: FIBBONACI -
- * 9: SORT -
- * 0: AVERAGE -
- */
-
 // Runtime
 void Task_Calc (void) {
 	switch (state) {
 	case MENU: //menu screen
 		// Prepare for a new operation
 		operation = NONE;
-		for (int i = 0; i < NMAX; i++) //set all operands to 0
+		for (int i = 0; i < NOMAX; i++) //set all operands to 0
 			operand[i] = 0;
 		count = 0;
 		result = 0;
@@ -203,7 +204,7 @@ void Task_Calc (void) {
 			}
 			else if (count < operand[0]+1){ //get all items
 				DisplayPrint(CALC, 0, "Enter item %u:", count);
-				state = ARRAYENTRYt10;
+				state = ARRAYENTRY10;
 			}
 			else {
 				operand[1] = &arr;
@@ -234,7 +235,7 @@ void Task_Calc (void) {
 			}
 			break;
 
-		case ARRAYENTRYt10: //enter values for the arrays, and multiply by 10.
+		case ARRAYENTRY10: //enter values for the arrays, and multiply by 10.
 			bool done3 = TouchEntry(CALC, &arr[count-1]);
 			DisplayPrint(CALC, 1, "%u", arr[count-1]);
 
@@ -318,3 +319,4 @@ void Task_Calc (void) {
 				break;
 			}
 	}
+
