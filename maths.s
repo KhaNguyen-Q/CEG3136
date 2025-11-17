@@ -81,11 +81,11 @@ pop {lr, r1}
 mul r0, r1, r0 //return value
 bx lr//go back to original function
 
-// fibbonacci uint32_t(uint32_t a)
+// fibonacci uint32_t(uint32_t a)
 // Ta assistance
-.global Fibbonacci
-.type Fibbonacci, %function
-Fibbonacci:
+.global Fibonacci
+.type Fibonacci, %function
+Fibonacci:
 push {r4}
 cmp r0, #0
 it eq
@@ -176,3 +176,4 @@ avg_done:
 pop {r4, r5}
 udiv r0, r2, r0
 bx lr
+
